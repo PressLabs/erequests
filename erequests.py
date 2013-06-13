@@ -49,10 +49,15 @@ class AsyncRequest(object):
         if callback:
             kwargs['hooks'] = {'response': callback}
 
+        self.exception_handler = kwargs.pop('exception_handler', None)
+
         #: The rest arguments for ``Session.request``
         self.kwargs = kwargs
         #: Resulting ``Response``
         self.response = None
+
+        self.exception = None
+        self._exception_handler_result = None
 
     def send(self, **kwargs):
         """
@@ -64,8 +69,16 @@ class AsyncRequest(object):
         merged_kwargs = {}
         merged_kwargs.update(self.kwargs)
         merged_kwargs.update(kwargs)
-        self.response = self.session.request(self.method, self.url, **merged_kwargs)
-        return self.response
+
+        try:
+            self.response = self.session.request(self.method, self.url,
+                                                 **merged_kwargs)
+        except RequestException as e:
+            self.exception = e
+            if self.exception_handler:
+                self._exception_handler_result = self.exception_handler(self)
+
+        return self._exception_handler_result or self.response
 
 
 def send(r, pool=None, stream=False):
@@ -109,7 +122,7 @@ def map(requests, stream=False, size=None):
     else:
         [j.wait() for j in jobs]
 
-    return [r.response for r in requests]
+    return [r._exception_handler_result or r.response for r in requests]
 
 
 def imap(requests, stream=False, size=2):
