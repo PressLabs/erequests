@@ -16,7 +16,7 @@ from eventlet import patcher
 from eventlet.greenpool import GreenPool
 
 # Monkey-patch.
-requests = patcher.import_patched('requests')
+requests = patcher.import_patched('requests.__init__')
 
 __all__ = ['map', 'imap', 'get', 'options', 'head', 'post', 'put', 'patch', 'delete', 'request']
 
